@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dynamic Multisegment Bus Route Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    html, body { margin:0; padding:0; height:100%; display:flex; flex-direction:column; }
+    #controls {
+      height:7vh; display:flex; align-items:center;
+      padding:8px 12px; background:#f4f4f4;
+      font-family:sans-serif; flex-wrap:wrap; gap:10px;
+    }
+    #infoBar {
+      height:5vh; padding:4px 12px; background:#e9ecef;
+      font-family:sans-serif; overflow-x:auto;
+    }
+    #map { flex:1; }
+    .leaflet-interactive.blink { animation:blink 1s linear infinite; stroke-dasharray:10,10; }
+    @keyframes blink {50%{stroke-opacity:0}}
+    input[type="number"] { width:100px; padding:2px }
+    input[type="text"] { width:140px; padding:2px }
+    button, select { padding:4px 8px; cursor:pointer }
+    .marker-label {
+      background: rgba(255,255,255,0.9);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    #etaInfo {
+      margin-left: 8px;
+      font-weight: bold;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <button id="locBtn">🔎 My Location</button>
+
+    <label>🚍 Route:</label>
+    <select id="routeSelect">
+      <option value="">-- Select --</option>
+      <option value="0">bubt ⇄ ecb chattor</option>
+      <option value="1">bubt ⇄ mirpur14</option>
+      <option value="2">bubt ⇄ shyamoli</option>
+    </select>
+
+    <label>🗺️ View:</label>
+    <select id="mapTypeSelect">
+      <option value="osm">Roadmap</option>
+      <option value="satellite">Satellite</option>
+      <option value="terrain">Terrain</option>
+    </select>
+
+    <label>🎯 Go To:</label>
+    <input type="number" id="destLat" placeholder="Lat" step="any">
+    <input type="number" id="destLon" placeholder="Lon" step="any">
+    <button id="routeBtn">Find Route</button>
+
+    <label>🔍 Search Address:</label>
+    <input type="text" id="searchName" placeholder="e.g. motijheel">
+    <button id="searchBtn">Go</button>
+
+    <label>📍 Track Bus:</label>
+    <select id="trackRouteSelect">
+      <option value="">-- Select Bus Route --</option>
+      <option value="0">bubt ⇄ ecb chattor (Bus 1)</option>
+    </select>
+    <button id="trackBtn">Track Bus</button>
+    <span id="etaInfo"></span>
+
+    <strong>—or click on map</strong>
+  </div>
+
+  <div id="infoBar">Route info will appear here.</div>
+  <div id="map"></div>
+
+  <!-- all your original features are now in bundle.js -->
+  <script src="/static/bundle.js"></script>
+</body>
+</html>
