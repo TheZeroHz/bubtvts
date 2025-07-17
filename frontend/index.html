@@ -2,28 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Dynamic Multisegment Bus Route Planner</title>
+  <title>BUBT VTS+</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS & JS -->
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
   <style>
-    html, body { margin:0; padding:0; height:100%; display:flex; flex-direction:column; }
+    /* Basic layout */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Toggle-header button */
+    .toggle-header-btn {
+      width: 100%;
+      padding: 8px;
+      font-family: sans-serif;
+      background: #ddd;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      z-index: 1001;
+    }
+    /* Controls bar */
     #controls {
-      height:7vh; display:flex; align-items:center;
-      padding:8px 12px; background:#f4f4f4;
-      font-family:sans-serif; flex-wrap:wrap; gap:10px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f4f4f4;
+      font-family: sans-serif;
+      transition: height 0.25s ease, opacity 0.25s ease;
     }
+    /* Info bar */
     #infoBar {
-      height:5vh; padding:4px 12px; background:#e9ecef;
-      font-family:sans-serif; overflow-x:auto;
+      height: 5vh;
+      padding: 4px 12px;
+      background: #e9ecef;
+      font-family: sans-serif;
+      overflow-x: auto;
+      transition: height 0.25s ease, opacity 0.25s ease;
     }
-    #map { flex:1; }
-    .leaflet-interactive.blink { animation:blink 1s linear infinite; stroke-dasharray:10,10; }
-    @keyframes blink {50%{stroke-opacity:0}}
-    input[type="number"] { width:100px; padding:2px }
-    input[type="text"] { width:140px; padding:2px }
-    button, select { padding:4px 8px; cursor:pointer }
+    /* Map takes remaining space */
+/* Make the map fill all remaining space in its flex‐column parent */
+#map {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+    /* General controls */
+    input, button, select {
+      padding: 4px 8px;
+      cursor: pointer;
+      font-family: sans-serif;
+    }
+    input[type="number"] { width: 100px; }
+    input[type="text"]   { width: 140px; }
     .marker-label {
       background: rgba(255,255,255,0.9);
       padding: 2px 6px;
@@ -32,15 +72,71 @@
       font-weight: bold;
       box-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    #etaInfo {
-      margin-left: 8px;
-      font-weight: bold;
-      font-family: sans-serif;
+    #etaInfo { margin-left: 8px; font-weight: bold; }
+    /* Hide Go-To group */
+    #goToGroup { display: none; }
+
+    /* Blink animation */
+    .leaflet-interactive.blink {
+      animation: blink 1s linear infinite;
+      stroke-dasharray: 10,10;
+    }
+    @keyframes blink { 50% { stroke-opacity: 0 } }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    /* Modal box */
+    .modal-content {
+      background: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      width: 280px;
+      max-width: 90vw;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    /* Close button */
+    .modal-close {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* Responsive: stack controls on narrow screens */
+    @media (max-width: 600px) {
+      #controls {
+        flex-direction: column;
+        align-items: stretch;
+        height: auto;
+      }
+      #controls > * {
+        width: 100%;
+        margin-bottom: 6px;
+      }
+      .modal-content {
+        padding: 16px;
+        width: 90vw;
+      }
     }
   </style>
 </head>
-<body>
 
+<body>
+  <!-- ➊ Toggle the header -->
+  <button id="toggleHeaderBtn" class="toggle-header-btn">Hide Header ▲</button>
+
+  <!-- ➋ Controls bar -->
   <div id="controls">
     <button id="locBtn">🔎 My Location</button>
 
@@ -50,39 +146,85 @@
       <option value="0">bubt ⇄ ecb chattor</option>
       <option value="1">bubt ⇄ mirpur14</option>
       <option value="2">bubt ⇄ shyamoli</option>
+      <option value="3">bubt ⇄ hemayetpur</option>
+      <option value="4">bubt ⇄ shyamoli</option>
     </select>
 
     <label>🗺️ View:</label>
     <select id="mapTypeSelect">
       <option value="osm">Roadmap</option>
       <option value="satellite">Satellite</option>
-      <option value="terrain">Terrain</option>
     </select>
 
-    <label>🎯 Go To:</label>
-    <input type="number" id="destLat" placeholder="Lat" step="any">
-    <input type="number" id="destLon" placeholder="Lon" step="any">
-    <button id="routeBtn">Find Route</button>
+    <div id="goToGroup">
+      <label>🎯 Go To:</label>
+      <input type="number" id="destLat" placeholder="Lat" step="any">
+      <input type="number" id="destLon" placeholder="Lon" step="any">
+      <button id="routeBtn">Find Route</button>
+    </div>
+
+    <label>📍 Track Bus:</label>
+    <select id="trackRouteSelect">
+      <option value="">-- Select Bus --</option>
+      <option value="Bus1">Bus 1: bubt ⇄ ecb chattor</option>
+      <option value="Bus2">Bus 2: bubt ⇄ mirpur14</option>
+      <option value="Bus3">Bus 3: bubt ⇄ shyamoli</option>
+      <option value="Bus4">Bus 4: bubt ⇄ hemayetpur</option>
+      <option value="Bus5">Bus 5: bubt ⇄ shyamoli</option>
+    </select>
+    <button id="trackBtn">Track Bus</button>
 
     <label>🔍 Search Address:</label>
     <input type="text" id="searchName" placeholder="e.g. motijheel">
     <button id="searchBtn">Go</button>
 
-    <label>📍 Track Bus:</label>
-    <select id="trackRouteSelect">
-      <option value="">-- Select Bus Route --</option>
-      <option value="0">bubt ⇄ ecb chattor (Bus 1)</option>
-    </select>
-    <button id="trackBtn">Track Bus</button>
     <span id="etaInfo"></span>
-
     <strong>—or click on map</strong>
   </div>
 
+  <!-- ➌ Info bar -->
   <div id="infoBar">Route info will appear here.</div>
+
+  <!-- ➍ Map container -->
   <div id="map"></div>
 
-  <!-- all your original features are now in bundle.js -->
+  <!-- ➎ Bus Info Modal -->
+  <div id="busInfoModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <button id="modalCloseBtn" class="modal-close">&times;</button>
+      <h2 id="modalBusName">Bus Name</h2>
+      <p><strong>Velocity:</strong> <span id="modalBusVel"></span> km/h</p>
+      <p><strong>ETA to nearest stop:</strong> <span id="modalBusETA"></span></p>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- RotatedMarker plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.min.js"></script>
+  <!-- Your compiled app code -->
   <script src="/static/bundle.js"></script>
+
+  <!-- ➏ Inline scripts for toggle & modal wiring -->
+  <script>
+    // Toggle header visibility
+    const toggleBtn = document.getElementById('toggleHeaderBtn');
+    const controls  = document.getElementById('controls');
+    const infoBar   = document.getElementById('infoBar');
+
+    toggleBtn.addEventListener('click', () => {
+      const hidden = controls.style.display === 'none';
+      controls.style.display = hidden ? 'flex' : 'none';
+      infoBar .style.display = hidden ? 'block': 'none';
+      toggleBtn.textContent  = hidden ? 'Minimize Menu ▲' : 'Show Menu ▼';
+      // Let Leaflet resize itself
+      setTimeout(() => map.invalidateSize(), 300);
+    });
+
+    // Modal close
+    document.getElementById('modalCloseBtn').addEventListener('click', () => {
+      document.getElementById('busInfoModal').style.display = 'none';
+    });
+  </script>
 </body>
 </html>
