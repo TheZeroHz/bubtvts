@@ -84,6 +84,10 @@ const baseLayers={
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19})
 };
 baseLayers.osm.addTo(map);
+window.addEventListener('resize', () => {
+  // give the browser a moment to recalc layout
+  setTimeout(() => map.invalidateSize(), 250);
+});
 document.getElementById('mapTypeSelect').addEventListener('change',e=>{
   Object.values(baseLayers).forEach(l=>map.removeLayer(l));
   baseLayers[e.target.value].addTo(map);
