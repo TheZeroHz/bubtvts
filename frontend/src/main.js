@@ -265,7 +265,7 @@ const busIconPaths = {
 };
 const busIcons={};
 
-function makeIcon(url,scale=0.05){
+function makeIcon(url,scale=0.01){
   return new Promise((resolve,reject)=>{
     const img=new Image();
     img.onload=()=>{
