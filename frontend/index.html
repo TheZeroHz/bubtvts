@@ -9,15 +9,27 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    /* Basic layout */
+    /* Basic layout - Fixed for mobile */
 html, body {
   margin: 0;
   padding: 0;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Use dvh (dynamic viewport height) for better mobile support */
+  min-height: 100dvh;
+  /* Fallback for browsers that don't support dvh */
+  min-height: 100vh;
 }
+
+/* Fix for mobile viewport issues */
+@supports (height: 100dvh) {
+  html, body {
+    height: 100dvh;
+  }
+}
+
     /* Toggle-header button */
     .toggle-header-btn {
       width: 100%;
@@ -29,6 +41,7 @@ html, body {
       text-align: center;
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
       z-index: 1001;
+      flex-shrink: 0; /* Prevent shrinking */
     }
     /* Controls bar */
     #controls {
@@ -40,22 +53,28 @@ html, body {
       background: #f4f4f4;
       font-family: sans-serif;
       transition: height 0.25s ease, opacity 0.25s ease;
+      flex-shrink: 0; /* Prevent shrinking */
     }
     /* Info bar */
     #infoBar {
       height: 5vh;
+      min-height: 30px; /* Minimum height for readability */
       padding: 4px 12px;
       background: #e9ecef;
       font-family: sans-serif;
       overflow-x: auto;
       transition: height 0.25s ease, opacity 0.25s ease;
+      flex-shrink: 0; /* Prevent shrinking */
     }
-    /* Map takes remaining space */
-/* Make the map fill all remaining space in its flex‐column parent */
-#map {
-  flex: 1 1 auto;
-  min-height: 0;
-}
+    
+    /* Map takes remaining space - Enhanced for mobile */
+    #map {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      height: 100%; /* Ensure full height within flex container */
+      position: relative; /* Ensure proper positioning */
+    }
 
     /* General controls */
     input, button, select {
@@ -114,20 +133,59 @@ html, body {
       cursor: pointer;
     }
 
-    /* Responsive: stack controls on narrow screens */
+    /* Enhanced responsive design for mobile */
     @media (max-width: 600px) {
       #controls {
         flex-direction: column;
         align-items: stretch;
         height: auto;
+        max-height: 40vh; /* Prevent controls from taking too much space */
+        overflow-y: auto; /* Allow scrolling if needed */
       }
       #controls > * {
         width: 100%;
         margin-bottom: 6px;
+        box-sizing: border-box;
       }
       .modal-content {
         padding: 16px;
         width: 90vw;
+      }
+      #infoBar {
+        height: auto;
+        min-height: 25px;
+        padding: 4px 8px;
+      }
+      
+      /* Ensure map gets proper space on mobile */
+      #map {
+        min-height: 50vh; /* Minimum height on mobile */
+      }
+    }
+
+    /* Additional mobile fixes */
+    @media (max-width: 480px) {
+      .toggle-header-btn {
+        padding: 6px;
+        font-size: 14px;
+      }
+      #controls {
+        padding: 6px 8px;
+        gap: 6px;
+      }
+      input, button, select {
+        padding: 6px;
+        font-size: 14px;
+      }
+    }
+
+    /* Fix for iOS Safari viewport issues */
+    @supports (-webkit-touch-callout: none) {
+      html, body {
+        height: -webkit-fill-available;
+      }
+      #map {
+        height: -webkit-fill-available;
       }
     }
   </style>
@@ -205,10 +263,13 @@ html, body {
   <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.min.js"></script>
   <!-- Your compiled app code -->
   <script src="/static/bundle.js"></script>
-
-  <!-- ➏ Inline scripts for toggle & modal wiring -->
+  
+  <!-- Enhanced toggle & modal scripts with mobile fixes -->
   <script>
-    // Toggle header visibility
+    // Initialize map variable for global access (will be set by your bundle.js)
+    let map;
+
+    // Toggle header visibility with enhanced mobile support
     const toggleBtn = document.getElementById('toggleHeaderBtn');
     const controls  = document.getElementById('controls');
     const infoBar   = document.getElementById('infoBar');
@@ -217,15 +278,58 @@ html, body {
       const hidden = controls.style.display === 'none';
       controls.style.display = hidden ? 'flex' : 'none';
       infoBar .style.display = hidden ? 'block': 'none';
-      toggleBtn.textContent  = hidden ? 'Minimize Menu ▲' : 'Show Menu ▼';
-      // Let Leaflet resize itself
-      setTimeout(() => map.invalidateSize(), 300);
+      toggleBtn.textContent  = hidden ? 'Hide Header ▲' : 'Show Header ▼';
+      
+      // Enhanced map resize with longer delay for mobile
+      setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 300);
+      
+      // Additional resize after animation completes
+      setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 600);
     });
 
     // Modal close
     document.getElementById('modalCloseBtn').addEventListener('click', () => {
       document.getElementById('busInfoModal').style.display = 'none';
     });
+
+    // Handle window resize events (important for mobile orientation changes)
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 250);
+    });
+
+    // Handle orientation change on mobile devices
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 500);
+    });
+
+    // Handle mobile viewport changes (address bar show/hide)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        setTimeout(() => {
+          if (map) {
+            map.invalidateSize();
+          }
+        }, 100);
+      });
+    }
   </script>
 </body>
 </html>
