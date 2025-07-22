@@ -268,6 +268,38 @@ html, body {
   <script>
     // Initialize map variable for global access (will be set by your bundle.js)
     let map;
+    
+    // Force map resize function with multiple attempts
+    function forceMapResize() {
+      if (map && typeof map.invalidateSize === 'function') {
+        map.invalidateSize(true); // Force hard reset
+        // Try multiple times with different delays
+        setTimeout(() => map.invalidateSize(true), 50);
+        setTimeout(() => map.invalidateSize(true), 100);
+        setTimeout(() => map.invalidateSize(true), 250);
+        setTimeout(() => map.invalidateSize(true), 500);
+      }
+    }
+    
+    // Wait for everything to load, then force map resize
+    window.addEventListener('load', () => {
+      // Wait a bit more for your bundle.js to initialize the map
+      setTimeout(() => {
+        forceMapResize();
+      }, 500);
+      
+      // Keep trying for a few seconds
+      setTimeout(() => forceMapResize(), 1000);
+      setTimeout(() => forceMapResize(), 1500);
+      setTimeout(() => forceMapResize(), 2000);
+    });
+    
+    // Also try when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => forceMapResize(), 100);
+      setTimeout(() => forceMapResize(), 500);
+      setTimeout(() => forceMapResize(), 1000);
+    });
 
     // Toggle header visibility with enhanced mobile support
     const toggleBtn = document.getElementById('toggleHeaderBtn');
@@ -280,19 +312,10 @@ html, body {
       infoBar .style.display = hidden ? 'block': 'none';
       toggleBtn.textContent  = hidden ? 'Hide Header ▲' : 'Show Header ▼';
       
-      // Enhanced map resize with longer delay for mobile
-      setTimeout(() => {
-        if (map) {
-          map.invalidateSize();
-        }
-      }, 300);
-      
-      // Additional resize after animation completes
-      setTimeout(() => {
-        if (map) {
-          map.invalidateSize();
-        }
-      }, 600);
+      // Force aggressive map resize after toggle
+      setTimeout(() => forceMapResize(), 50);
+      setTimeout(() => forceMapResize(), 300);
+      setTimeout(() => forceMapResize(), 600);
     });
 
     // Modal close
@@ -300,36 +323,58 @@ html, body {
       document.getElementById('busInfoModal').style.display = 'none';
     });
 
-    // Handle window resize events (important for mobile orientation changes)
+    // Enhanced resize handling
     let resizeTimeout;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (map) {
-          map.invalidateSize();
-        }
-      }, 250);
+        forceMapResize();
+      }, 100);
     });
 
     // Handle orientation change on mobile devices
     window.addEventListener('orientationchange', () => {
-      setTimeout(() => {
-        if (map) {
-          map.invalidateSize();
-        }
-      }, 500);
+      setTimeout(() => forceMapResize(), 100);
+      setTimeout(() => forceMapResize(), 500);
+      setTimeout(() => forceMapResize(), 1000);
     });
 
     // Handle mobile viewport changes (address bar show/hide)
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', () => {
-        setTimeout(() => {
-          if (map) {
-            map.invalidateSize();
-          }
-        }, 100);
+        forceMapResize();
       });
     }
+    
+    // Continuous resize attempts for mobile (aggressive fix)
+    let mobileResizeInterval;
+    
+    // Detect if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                    (window.innerWidth <= 768);
+    
+    if (isMobile) {
+      // On mobile, periodically check and resize for the first 10 seconds
+      mobileResizeInterval = setInterval(() => {
+        forceMapResize();
+      }, 500);
+      
+      // Stop after 10 seconds
+      setTimeout(() => {
+        if (mobileResizeInterval) {
+          clearInterval(mobileResizeInterval);
+        }
+      }, 10000);
+    }
+    
+    // Touch events can also trigger layout changes on mobile
+    document.addEventListener('touchstart', () => {
+      setTimeout(() => forceMapResize(), 100);
+    });
+    
+    document.addEventListener('touchend', () => {
+      setTimeout(() => forceMapResize(), 100);
+    });
   </script>
 </body>
 </html>
