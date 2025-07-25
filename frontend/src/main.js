@@ -99,18 +99,21 @@ const stopIcon=L.icon({iconUrl:'https://github.com/TheZeroHz/bubtvts/blob/main/f
 const uniIcon =L.icon({iconUrl:'https://cdn-icons-png.flaticon.com/128/8074/8074800.png',iconSize:[60,60],iconAnchor:[30,60]});
 const destIcon=L.icon({iconUrl:'https://cdn-icons-png.flaticon.com/128/1694/1694364.png',iconSize:[50,50],iconAnchor:[25,50]});
 
-Object.entries(stopages).forEach(([name,coords])=>{
-  const icon=name==='bubt'?uniIcon:stopIcon;
-  L.marker(coords,{icon})
-   .addTo(map)
-   .bindPopup(name)
-   .bindTooltip(name,{
-     permanent:true,
-     direction:'top',
-     offset:[0, name==='bubt'? -60:-40],
-     className:'marker-label'
-   });
+const stopMarkers = {}; // Store all stop markers (but don't show all at once)
+
+// Create all markers, but only add BUBT to map initially
+Object.entries(stopages).forEach(([name, coords]) => {
+  const icon = name === 'bubt' ? uniIcon : stopIcon;
+  const marker = L.marker(coords, { icon }).bindPopup(name).bindTooltip(name, {
+    permanent: true,
+    direction: 'top',
+    offset: [0, name === 'bubt' ? -60 : -40],
+    className: 'marker-label'
+  });
+  stopMarkers[name] = marker;
+  if (name === 'bubt') marker.addTo(map);  // 👈 Only add BUBT initially
 });
+
 
 // --- 5. Geolocation ---
 let userLat,userLon,userMarker;
@@ -132,30 +135,71 @@ map.whenReady(showMyLocation);
 // --- 6. Static Route (dotted) ---
 let selectedLegs=[];
 let destMarker, busLegs=[], walkLegs=[];
-document.getElementById('routeSelect').addEventListener('change',async e=>{
-  // clear dynamic & dest/search first
-  if(destMarker){ map.removeLayer(destMarker); destMarker=null; }
-  if(window.searchMarker){ map.removeLayer(window.searchMarker); window.searchMarker=null; }
-  busLegs.forEach(l=>map.removeLayer(l)); busLegs=[];
-  walkLegs.forEach(l=>map.removeLayer(l)); walkLegs=[];
+document.getElementById('routeSelect').addEventListener('change', async e => {
+  // Clear dynamic/destination/search markers
+  if (destMarker) {
+    map.removeLayer(destMarker);
+    destMarker = null;
+  }
+  if (window.searchMarker) {
+    map.removeLayer(window.searchMarker);
+    window.searchMarker = null;
+  }
+  busLegs.forEach(l => map.removeLayer(l));
+  busLegs = [];
+  walkLegs.forEach(l => map.removeLayer(l));
+  walkLegs = [];
 
-  // then clear static
-  selectedLegs.forEach(l=>map.removeLayer(l)); selectedLegs=[];
-  const idx=e.target.value;
-  if(idx===""||isNaN(idx)){
-    document.getElementById('infoBar').textContent="Route info will appear here.";
+  // Clear static route lines
+  selectedLegs.forEach(l => map.removeLayer(l));
+  selectedLegs = [];
+
+  const idx = e.target.value;
+  if (idx === "" || isNaN(idx)) {
+    document.getElementById('infoBar').textContent = "Route info will appear here.";
+    
+    // Hide all stop markers except bubt
+    Object.entries(stopMarkers).forEach(([name, marker]) => {
+      if (name !== 'bubt' && map.hasLayer(marker)) {
+        map.removeLayer(marker);
+      }
+    });
+
     return;
   }
-  const seq=routes[+idx];
-  for(let i=0;i<seq.length-1;i++){
-    const A=stopages[seq[i]], B=stopages[seq[i+1]],
-          path=await fetchOsrm([A,B],'driving'),
-          leg=L.polyline(path,{color:'#ff3300',weight:4,dashArray:'5,12'}).addTo(map);
+
+  const seq = routes[+idx];
+
+  // Hide all stop markers (except BUBT)
+  Object.entries(stopMarkers).forEach(([name, marker]) => {
+    if (name !== 'bubt' && map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+
+  // Show relevant stop markers from the selected route
+  seq.forEach(name => {
+    if (stopMarkers[name] && name !== 'bubt') {
+      stopMarkers[name].addTo(map);
+    }
+  });
+
+  // Draw route legs
+  for (let i = 0; i < seq.length - 1; i++) {
+    const A = stopages[seq[i]], B = stopages[seq[i + 1]],
+          path = await fetchOsrm([A, B], 'driving'),
+          leg = L.polyline(path, { color: '#ff3300', weight: 4, dashArray: '5,12' }).addTo(map);
     selectedLegs.push(leg);
   }
-  if(selectedLegs.length) map.fitBounds(L.featureGroup(selectedLegs).getBounds());
-  document.getElementById('infoBar').textContent="Route: "+seq.join(" → ");
+
+  // Fit bounds and update info bar
+  if (selectedLegs.length) {
+    map.fitBounds(L.featureGroup(selectedLegs).getBounds());
+  }
+
+  document.getElementById('infoBar').textContent = "Route: " + seq.join(" → ");
 });
+
 
 // --- 7. Dynamic Routing ---
 async function findBestRoute(lat,lon){
