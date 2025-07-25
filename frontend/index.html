@@ -157,9 +157,11 @@ html, body {
         padding: 4px 8px;
       }
       
-      /* Ensure map gets proper space on mobile */
       #map {
-        min-height: 50vh; /* Minimum height on mobile */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%; /* Add this if not already */
+  transition: height 0.2s ease-in-out; /* smooth resizing */
       }
     }
 
@@ -306,17 +308,19 @@ html, body {
     const controls  = document.getElementById('controls');
     const infoBar   = document.getElementById('infoBar');
 
-    toggleBtn.addEventListener('click', () => {
-      const hidden = controls.style.display === 'none';
-      controls.style.display = hidden ? 'flex' : 'none';
-      infoBar .style.display = hidden ? 'block': 'none';
-      toggleBtn.textContent  = hidden ? 'Hide Header ▲' : 'Show Header ▼';
-      
-      // Force aggressive map resize after toggle
-      setTimeout(() => forceMapResize(), 50);
-      setTimeout(() => forceMapResize(), 300);
-      setTimeout(() => forceMapResize(), 600);
-    });
+toggleBtn.addEventListener('click', () => {
+  const hidden = controls.style.display === 'none';
+  controls.style.display = hidden ? 'flex' : 'none';
+  infoBar.style.display = hidden ? 'block' : 'none';
+  toggleBtn.textContent = hidden ? 'Hide Header ▲' : 'Show Header ▼';
+
+  // Let layout settle, then resize map
+  setTimeout(() => {
+    map.invalidateSize();           // Trigger Leaflet resize
+    map._onResize?.();              // Internal fallback
+  }, 300);
+});
+
 
     // Modal close
     document.getElementById('modalCloseBtn').addEventListener('click', () => {
