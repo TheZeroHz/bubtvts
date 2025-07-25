@@ -253,7 +253,6 @@ document.getElementById('searchBtn').addEventListener('click',async ()=>{
 });
 
 // --- 9. Bus Icons & Multi-Bus Polling ---
-
 const busIconPaths = {
   N:  'https://raw.githubusercontent.com/TheZeroHz/bubtvts/main/frontend/icon/bus/N.png',
   NE: 'https://raw.githubusercontent.com/TheZeroHz/bubtvts/main/frontend/icon/bus/NE.png',
@@ -264,75 +263,63 @@ const busIconPaths = {
   W:  'https://raw.githubusercontent.com/TheZeroHz/bubtvts/main/frontend/icon/bus/W.png',
   NW: 'https://raw.githubusercontent.com/TheZeroHz/bubtvts/main/frontend/icon/bus/NW.png'
 };
+const busIcons={};
 
-const busMarkers = {}, busTraces = {}, traceLines = {};
-const busIconOriginalSize = {};
-
-// 🔧 Preload image dimensions only once
-function preloadBusIcons() {
-  return Promise.all(
-    Object.entries(busIconPaths).map(([dir, url]) =>
-      new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          busIconOriginalSize[dir] = { width: img.width, height: img.height };
-          resolve();
-        };
-        img.onerror = reject;
-        img.src = url;
-      })
-    )
-  );
-}
-
-// 📏 Return scaled icon based on current zoom
-function getBusIcon(dir, zoom) {
-  const base = busIconOriginalSize[dir] || { width: 100, height: 100 };
-  const scale = zoom / 18;  // tune this if too small/large
-  const w = base.width * scale;
-  const h = base.height * scale;
-
-  return L.icon({
-    iconUrl: busIconPaths[dir],
-    iconSize: [w, h],
-    iconAnchor: [w / 2, h]
+function makeIcon(url,scale=0.04){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const w=img.width*scale, h=img.height*scale;
+      resolve(L.icon({iconUrl:url,iconSize:[w,h],iconAnchor:[w/2,h]}));
+    };
+    img.onerror=reject;
+    img.src=url;
   });
 }
 
-// 🚀 Main loader
-async function preloadBusIconsAndStart() {
-  await preloadBusIcons();
+async function preloadBusIconsAndStart(){
+  await Promise.all(Object.entries(busIconPaths).map(([dir,url])=>
+    makeIcon(url).then(ic=>busIcons[dir]=ic)
+  ));
 }
 preloadBusIconsAndStart();
 
-// 🚍 Start polling for a specific bus
+const busMarkers={}, busTraces={}, traceLines={};
+
 function startBusPolling(busId) {
-  // 1. Clear previous polling
+  // 1. Clear any existing polling interval for this bus
   if (traceLines[busId]?.interval) {
     clearInterval(traceLines[busId].interval);
   }
-
-  // 2. Reset trace
+  // 2. Reset trace data
   busTraces[busId] = [];
   traceLines[busId] = {};
 
-  // 3. Begin polling
+  // 3. Start new polling interval
   traceLines[busId].interval = setInterval(async () => {
     const { lat: bLat, long: bLon, rot } = await fetchBus(busId);
-    const icon = getBusIcon(rot, map.getZoom());
+    const icon = busIcons[rot] || busIcons['N'];
 
-    // Create or update marker
+    // Create marker if it doesn't exist yet
     if (!busMarkers[busId]) {
       busMarkers[busId] = L.marker([bLat, bLon], { icon })
         .addTo(map)
-        .bindTooltip(busId, { permanent: true, className: 'marker-label' });
+        .bindTooltip(busId, {
+          permanent: true,
+          className: 'marker-label'
+        });
 
+      // Enable smooth gliding on subsequent moves
       busMarkers[busId]._icon.style.transition = 'transform 0.5s linear';
+
     } else {
-      busMarkers[busId].setLatLng([bLat, bLon]).setIcon(icon);
+      // Move existing marker (will animate thanks to CSS transition)
+      busMarkers[busId]
+        .setLatLng([bLat, bLon])
+        .setIcon(icon);
     }
 
-    // Draw trace line
+    // Append to trace and draw/update polyline
     busTraces[busId].push([bLat, bLon]);
     if (!traceLines[busId].line) {
       traceLines[busId].line = L.polyline(busTraces[busId], {
@@ -345,17 +332,6 @@ function startBusPolling(busId) {
     }
   }, 2000);
 }
-
-// 🔄 Rescale all bus icons on zoom change
-map.on('zoomend', () => {
-  const zoom = map.getZoom();
-  for (const [busId, marker] of Object.entries(busMarkers)) {
-    const iconUrl = marker.options.icon.options.iconUrl;
-    const rot = Object.entries(busIconPaths).find(([_, url]) => url === iconUrl)?.[0] || 'N';
-    const scaledIcon = getBusIcon(rot, zoom);
-    marker.setIcon(scaledIcon);
-  }
-});
 
 
 // --- Track‐Bus click handler with modal wiring ---
